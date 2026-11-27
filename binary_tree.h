@@ -1,5 +1,4 @@
-#include <stdlib.h>
-
+#include "dump_modes.h"
 #define VERIFY_ERROR(err) do {if (err != BIN_TREE_ERR_OK) return err;} while(0)
 
 #define VERIFY_NULL_POINTER(pointer) do                    \
@@ -45,7 +44,7 @@ static const op_info op_table[] =
     [OP_ADD] = {OP_ADD, "+",   "+",      2},
     [OP_SUB] = {OP_SUB, "-",   "-",      2},
     [OP_MUL] = {OP_MUL, "*",   "\\cdot", 2},
-    [OP_DIV] = {OP_DIV, "/",   "/", 2},
+    [OP_DIV] = {OP_DIV, "/",   "/",      2},
     [OP_POW] = {OP_POW, "^",   "^",      2},
     [OP_SIN] = {OP_SIN, "sin", "\\sin",  1},
     [OP_COS] = {OP_COS, "cos", "\\cos",  1},
@@ -126,6 +125,7 @@ const int MAX_CAPACITY = 500;
 const int LEN_OF_POINTER_NAME = 32;
 const int LEN_OF_DATA_STR = 16;
 const double POISON = 0xBEDA;
+const int LEN_OF_COMMAND = 128;
 
 BinTreeErrors BinTreeInit(bin_tree_t* tree);
 BinTreeErrors BinTreeRemove(bin_tree_t* tree);
@@ -134,6 +134,7 @@ unsigned int  BinTreeCountNodes(bin_tree_node_t* node);
 BinTreeErrors BinTreeVerify(bin_tree_t* tree);
 BinTreeErrors BinTreeLispDumpTree(bin_tree_t* tree, const char* lisp_filename);
 BinTreeErrors BinTreeTexDumpTree(bin_tree_t* tree, const char* tex_filename);
+void          CompilePDFTex(const char* tex_filename);
 BinTreeErrors BinTreeGraphDumpTree(bin_tree_t* tree, const char* dot_filename);
 BinTreeErrors BinTreeGetTreeFromFile(bin_tree_t* tree, const char* lisp_filename);
 BinTreeErrors BinTreeAllocateNode(bin_tree_node_t** node, bin_tree_elem_t elem,

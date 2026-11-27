@@ -1,10 +1,14 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "binary_tree.h"
 
 
-BinTreeErrors DiffTree(bin_tree_t* tree);
+BinTreeErrors    DiffTree(bin_tree_t* tree);
 bin_tree_node_t* DiffNode(bin_tree_node_t* node);
 bin_tree_node_t* CopyNode(bin_tree_node_t* node);
+BinTreeErrors    SimplifyTree(bin_tree_t* tree);
+bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter);
+bool             IsEqual(double a, double b);
 
 #define NUM_(val)       BinTreeCreateNode(bin_tree_elem_t{.num = (double)(val)}, NUM, NULL, NULL, NULL)
 #define VAR_(ch)        BinTreeCreateNode(bin_tree_elem_t{.var = (ch)}, VAR, NULL, NULL, NULL)
@@ -25,21 +29,25 @@ bin_tree_node_t* CopyNode(bin_tree_node_t* node);
 #define cL              CopyNode(node->left)
 #define cR              CopyNode(node->right)
 
+const double ACCURACY = 1e-7;
 
 int main()
 {
     bin_tree_t tree = {};
 
-    BinTreeErrors err = BinTreeInit(&tree);
+    BinTreeInit(&tree);
 
-    BinTreeGetTreeFromFile(&tree, "test.txt");
-    DiffTree(&tree);
+    fprintf(stderr, "%d\n", BinTreeGetTreeFromFile(&tree, "test.txt"));
+    BinTreeTexDumpTree(&tree, "test_tex.tex");
     BinTreeLispDumpTree(&tree, "test_out.txt");
+    DiffTree(&tree);
+    //BinTreeLispDumpTree(&tree, "test_out.txt");
     BinTreeGraphDumpTree(&tree, "test_gr.txt");
     BinTreeTexDumpTree(&tree, "test_tex.tex");
+    fprintf(stderr, "%d\n", SimplifyTree(&tree));
+    BinTreeTexDumpTree(&tree, "test_tex.tex");
+    CompilePDFTex("test_tex.tex");
     BinTreeRemove(&tree);
-    fprintf(stderr, "2222");
-    fflush(stderr);
 }
 
 BinTreeErrors DiffTree(bin_tree_t* tree)
@@ -104,6 +112,116 @@ bin_tree_node_t* CopyNode(bin_tree_node_t* node)
     if (node == NULL) return NULL;
 
     return BinTreeCreateNode(node->data, node->type, NULL, CopyNode(node->left), CopyNode(node->right));
+}
+
+BinTreeErrors SimplifyTree(bin_tree_t* tree)
+{
+    VERIFY_NULL_POINTER(tree);
+    int counter = 0;
+    do
+    {
+        counter = 0;
+        tree->root = SimplifyNodeNeutralElems(tree->root, &counter);
+    } while(counter > 0);
+    return BIN_TREE_ERR_OK;
+}
+//FIXME: copypaste
+bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
+{
+    if (node == NULL) return NULL;
+
+    node->left  = SimplifyNodeNeutralElems(node->left,  counter);
+    node->right = SimplifyNodeNeutralElems(node->right, counter);
+
+    if (node->type == OPERAND)
+    {
+        switch (node->data.operand)
+        {
+            case OP_ADD:
+            {
+                if (node->left->type == NUM && IsEqual(node->left->data.num, 0))
+                {
+                    bin_tree_node_t* right = node->right;
+                    BinTreeRemoveSubtree(node->left);
+                    free(node);
+                    (*counter)++;
+                    return right;
+                }
+                else if (node->right->type == NUM && IsEqual(node->right->data.num, 0))
+                {
+                    bin_tree_node_t* left = node->left;
+                    BinTreeRemoveSubtree(node->right);
+                    free(node);
+                    (*counter)++;
+                    return left;
+                }
+                return node;
+            }
+            case OP_SUB:
+            {
+                if (node->right->type == NUM && IsEqual(node->right->data.num, 0))
+                {
+                    bin_tree_node_t* left = node->left;
+                    BinTreeRemoveSubtree(node->right);
+                    free(node);
+                    (*counter)++;
+                    return left;
+                }
+                return node;
+            }
+            case OP_MUL:
+            {
+                if (node->left->type == NUM && IsEqual(node->left->data.num, 1))
+                {
+                    bin_tree_node_t* right = node->right;
+                    BinTreeRemoveSubtree(node->left);
+                    free(node);
+                    (*counter)++;
+                    return right;
+                }
+                else if (node->right->type == NUM && IsEqual(node->right->data.num, 1))
+                {
+                    bin_tree_node_t* left = node->left;
+                    BinTreeRemoveSubtree(node->right);
+                    free(node);
+                    (*counter)++;
+                    return left;
+                }
+                else if (node->right->type == NUM && IsEqual(node->right->data.num, 0) ||
+                         node->left->type == NUM && IsEqual(node->left->data.num, 0))
+                {
+                    BinTreeRemoveSubtree(node->left);
+                    BinTreeRemoveSubtree(node->right);
+                    node->left  = NULL;
+                    node->right = NULL;
+                    node->type  = NUM;
+                    node->data.num = 0;
+                    (*counter)++;
+                    return node;
+                }
+                return node;
+            }
+            case OP_DIV:
+            {
+                if (node->right->type == NUM && IsEqual(node->right->data.num, 1))
+                {
+                    bin_tree_node_t* left = node->left;
+                    BinTreeRemoveSubtree(node->right);
+                    free(node);
+                    (*counter)++;
+                    return left;
+                }
+            }
+
+            default: return node;
+        }
+    }
+    return node;
+}
+
+bool IsEqual(double a, double b)
+{
+    return (-ACCURACY < a - b && a - b < ACCURACY);
 }
 
 

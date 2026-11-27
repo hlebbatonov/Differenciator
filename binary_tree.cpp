@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -198,6 +199,12 @@ BinTreeErrors BinTreeGraphDumpTree(bin_tree_t* tree, const char* dot_filename)
     fprintf(dot_file, "\n");
     fprintf(dot_file, "\n}");
     fclose(dot_file);
+
+#ifdef DOT_MODE_IS_ON
+    char dot_command[LEN_OF_COMMAND] = {};
+    snprintf(dot_command, sizeof(dot_command), "dot -Tsvg %s -o _%s_.svg ", dot_filename, dot_filename);
+    system(dot_command);
+#endif
     return BIN_TREE_ERR_OK;
 }
 
@@ -256,6 +263,8 @@ static BinTreeErrors BinTreeGraphDumpSubtree(bin_tree_node_t* node, FILE* dot_fi
 
 BinTreeErrors BinTreeTexDumpTree(bin_tree_t* tree, const char* tex_filename)
 {
+    static bool tex_file_first_run = true;
+
     if (tree == NULL) {fprintf(stderr, "Error: got NULL tree pointer\n"); return BIN_TREE_ERR_NULL_POINTER;}
 
     if (tex_filename == NULL)
@@ -264,25 +273,37 @@ BinTreeErrors BinTreeTexDumpTree(bin_tree_t* tree, const char* tex_filename)
         return BIN_TREE_ERR_FILE_NOT_OPENED;
     }
 
-    FILE* tex_file = fopen(tex_filename, "w");
+    FILE* tex_file = fopen(tex_filename, (tex_file_first_run == true)? "w" : "r+");
     if (tex_file == NULL)
     {
         fprintf(stderr, "Error: cannot open file <%s>: %s\n", tex_filename, strerror(errno));
         return BIN_TREE_ERR_FILE_NOT_OPENED;
     }
-
+    const char* tex_file_end = "\n\\end{document}\n";
     //Head
-    fprintf(tex_file, "\\documentclass[a4paper,12pt]{article}\n"
-                      "\\usepackage[utf8]{inputenc}\n"
-                      "\\usepackage[T2A]{fontenc}\n"
-                      "\\usepackage[russian]{babel}\n"
-                      "\\usepackage{amsmath, amssymb}\n"
-                      "\\usepackage[left=1.5cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}\n\n"
-                      "\\begin{document}\n\n");
-    fprintf(tex_file, "$");
+    if (tex_file_first_run == true)
+    {
+        fprintf(tex_file, "\\documentclass[a4paper,12pt]{article}\n"
+                        "\\usepackage[utf8]{inputenc}\n"
+                        "\\usepackage[T2A]{fontenc}\n"
+                        "\\usepackage{breqn}\n"
+                        "\\usepackage[russian]{babel}\n"
+                        "\\usepackage{amsmath, amssymb}\n"
+                        "\\usepackage[left=1.5cm, right=1.5cm, top=2cm, bottom=2cm]{geometry}\n\n"
+                        "\\begin{document}\n\n");
+        tex_file_first_run = false;
+    }
+    else
+    {
+        fseek(tex_file, -(long)strlen(tex_file_end), SEEK_END);
+    }
+
+    fprintf(tex_file, "\\begin{dmath}\n");
     BinTreeTexDumpSubtree(tree->root, tex_file);
-    fprintf(tex_file, "$");
-    fprintf(tex_file, "\n\n\\end{document}\n\n");
+    fprintf(tex_file, "\\end{dmath}\n");
+
+    fprintf(tex_file, "%s", tex_file_end);
+
     fclose(tex_file);
     return BIN_TREE_ERR_OK;
 }
@@ -312,6 +333,18 @@ static BinTreeErrors BinTreeTexDumpSubtree(bin_tree_node_t* node, FILE* tex_file
 
     fprintf(tex_file, "}");
     return BIN_TREE_ERR_OK;
+}
+
+void CompilePDFTex(const char* tex_filename)
+{
+    struct stat tex_file_info = {};
+    if (stat(tex_filename, &tex_file_info) != 0) return;
+#ifdef LATEX_MODE_IS_ON
+    char latex_command[LEN_OF_COMMAND] = {};
+    snprintf(latex_command, sizeof(latex_command), "xelatex .\\%s", tex_filename);
+    system(latex_command);
+#endif
+
 }
 
 static void BinTreePointerToString(bin_tree_node_t* pointer, char* buffer)
@@ -385,7 +418,7 @@ BinTreeErrors BinTreeGetTreeFromFile(bin_tree_t* tree, const char* lisp_filename
     }
 
     size_t lisp_file_size = (size_t)lisp_file_stat.st_size;
-    char* buffer = (char*)calloc(lisp_file_size, sizeof(char));
+    char* buffer = (char*)calloc(lisp_file_size + 1, sizeof(char));
     if (buffer == NULL)
     {
         fprintf(stderr, "Error: calloc failed for file buffer\n");
@@ -400,10 +433,9 @@ BinTreeErrors BinTreeGetTreeFromFile(bin_tree_t* tree, const char* lisp_filename
     const char* curr_pos = buffer;
     size_t curr_num_of_nodes = 0;
     BinTreeErrors err = BinTreeLispGetNodeFromBuffer(&(tree->root), &curr_pos, &curr_num_of_nodes);
-    if (err != BIN_TREE_ERR_OK) {BinTreeRemove(tree); return err;}
+    if (err != BIN_TREE_ERR_OK) {BinTreeRemove(tree); free(buffer); return err;}
 
     free(buffer);
-    fclose(lisp_file);
     return BIN_TREE_ERR_OK;
 
 }
