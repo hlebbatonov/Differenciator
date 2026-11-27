@@ -276,8 +276,13 @@ BinTreeErrors BinTreeTexDumpTree(bin_tree_t* tree, const char* tex_filename)
     FILE* tex_file = fopen(tex_filename, (tex_file_first_run == true)? "w" : "r+");
     if (tex_file == NULL)
     {
-        fprintf(stderr, "Error: cannot open file <%s>: %s\n", tex_filename, strerror(errno));
-        return BIN_TREE_ERR_FILE_NOT_OPENED;
+        tex_file = fopen(tex_filename, "wb");
+        if (tex_file == NULL)
+        {
+            fprintf(stderr, "Error: cannot open file <%s>: %s\n", tex_filename, strerror(errno));
+            return BIN_TREE_ERR_FILE_NOT_OPENED;
+        }
+        tex_file_first_run = true;
     }
     const char* tex_file_end = "\n\\end{document}\n";
     //Head
@@ -300,7 +305,7 @@ BinTreeErrors BinTreeTexDumpTree(bin_tree_t* tree, const char* tex_filename)
 
     fprintf(tex_file, "\\begin{dmath}\n");
     BinTreeTexDumpSubtree(tree->root, tex_file);
-    fprintf(tex_file, "\\end{dmath}\n");
+    fprintf(tex_file, "\n\\end{dmath}\n");
 
     fprintf(tex_file, "%s", tex_file_end);
 

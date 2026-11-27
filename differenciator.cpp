@@ -42,7 +42,7 @@ int main()
     BinTreeTexDumpTree(&tree, "test_tex.tex");
     BinTreeLispDumpTree(&tree, "test_out.txt");
     DiffTree(&tree);
-    //BinTreeLispDumpTree(&tree, "test_out.txt");
+    BinTreeLispDumpTree(&tree, "test_after_out.txt");
     BinTreeGraphDumpTree(&tree, "test_gr.txt");
     BinTreeTexDumpTree(&tree, "test_tex.tex");
     fprintf(stderr, "%d\n", SimplifyTree(&tree));
