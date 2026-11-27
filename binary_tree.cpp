@@ -545,3 +545,4 @@ static BinTreeErrors BinTreeParseNode(const char* data_start, const char* data_e
 
 }
 //!SECTION
+

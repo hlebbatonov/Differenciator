@@ -8,6 +8,7 @@ bin_tree_node_t* DiffNode(bin_tree_node_t* node);
 bin_tree_node_t* CopyNode(bin_tree_node_t* node);
 BinTreeErrors    SimplifyTree(bin_tree_t* tree);
 bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter);
+bin_tree_node_t* SimplifyNodeConstants(bin_tree_node_t* node, int* counter);
 bool             IsEqual(double a, double b);
 
 #define NUM_(val)       BinTreeCreateNode(bin_tree_elem_t{.num = (double)(val)}, NUM, NULL, NULL, NULL)
@@ -121,11 +122,12 @@ BinTreeErrors SimplifyTree(bin_tree_t* tree)
     do
     {
         counter = 0;
+        tree->root = SimplifyNodeConstants(tree->root, &counter);
         tree->root = SimplifyNodeNeutralElems(tree->root, &counter);
     } while(counter > 0);
     return BIN_TREE_ERR_OK;
 }
-//FIXME: copypaste
+
 bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
 {
     if (node == NULL) return NULL;
@@ -142,16 +144,18 @@ bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
                 if (node->left->type == NUM && IsEqual(node->left->data.num, 0))
                 {
                     bin_tree_node_t* right = node->right;
-                    BinTreeRemoveSubtree(node->left);
-                    free(node);
+                    right->parent = node->parent;
+                    node->right = NULL;
+                    BinTreeRemoveSubtree(node);
                     (*counter)++;
                     return right;
                 }
                 else if (node->right->type == NUM && IsEqual(node->right->data.num, 0))
                 {
                     bin_tree_node_t* left = node->left;
-                    BinTreeRemoveSubtree(node->right);
-                    free(node);
+                    left->parent = node->parent;
+                    node->left = NULL;
+                    BinTreeRemoveSubtree(node);
                     (*counter)++;
                     return left;
                 }
@@ -162,8 +166,9 @@ bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
                 if (node->right->type == NUM && IsEqual(node->right->data.num, 0))
                 {
                     bin_tree_node_t* left = node->left;
-                    BinTreeRemoveSubtree(node->right);
-                    free(node);
+                    left->parent = node->parent;
+                    node->left = NULL;
+                    BinTreeRemoveSubtree(node);
                     (*counter)++;
                     return left;
                 }
@@ -174,16 +179,18 @@ bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
                 if (node->left->type == NUM && IsEqual(node->left->data.num, 1))
                 {
                     bin_tree_node_t* right = node->right;
-                    BinTreeRemoveSubtree(node->left);
-                    free(node);
+                    right->parent = node->parent;
+                    node->right = NULL;
+                    BinTreeRemoveSubtree(node);
                     (*counter)++;
                     return right;
                 }
                 else if (node->right->type == NUM && IsEqual(node->right->data.num, 1))
                 {
                     bin_tree_node_t* left = node->left;
-                    BinTreeRemoveSubtree(node->right);
-                    free(node);
+                    left->parent = node->parent;
+                    node->left = NULL;
+                    BinTreeRemoveSubtree(node);
                     (*counter)++;
                     return left;
                 }
@@ -206,11 +213,13 @@ bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
                 if (node->right->type == NUM && IsEqual(node->right->data.num, 1))
                 {
                     bin_tree_node_t* left = node->left;
-                    BinTreeRemoveSubtree(node->right);
-                    free(node);
+                    left->parent = node->parent;
+                    node->left = NULL;
+                    BinTreeRemoveSubtree(node);
                     (*counter)++;
                     return left;
                 }
+                return node;
             }
 
             default: return node;
@@ -218,6 +227,33 @@ bin_tree_node_t* SimplifyNodeNeutralElems(bin_tree_node_t* node, int* counter)
     }
     return node;
 }
+
+bin_tree_node_t* SimplifyNodeConstants(bin_tree_node_t* node, int* counter)
+{
+    if (node == NULL) return NULL;
+
+    node->left  = SimplifyNodeConstants(node->left,  counter);
+    node->right = SimplifyNodeConstants(node->right, counter);
+
+    if (node->type == OPERAND && (node->data.operand == OP_ADD || node->data.operand == OP_SUB ||
+        node->data.operand == OP_MUL || node->data.operand == OP_DIV))
+    {
+        if (node->left->type == NUM && node->right->type == NUM)
+        {
+            node->data.num = op_table[node->data.operand].calc_func(node->left->data.num,
+                                                                    node->right->data.num);
+            node->type = NUM;
+            BinTreeRemoveSubtree(node->left);
+            BinTreeRemoveSubtree(node->right);
+            node->left  = NULL;
+            node->right = NULL;
+            (*counter)++;
+            return node;
+        }
+    }
+    return node;
+}
+
 
 bool IsEqual(double a, double b)
 {

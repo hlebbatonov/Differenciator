@@ -22,6 +22,11 @@ enum OP_CODE
     OP_LOG
 };
 
+static double AddFunc(double a, double b) {return a + b;}
+static double SubFunc(double a, double b) {return a - b;}
+static double MulFunc(double a, double b) {return a * b;}
+static double DivFunc(double a, double b) {return a / b;}
+
 enum DUMP_FILE_TYPE
 {
     POISON_FILE = -1,
@@ -34,6 +39,7 @@ enum DUMP_FILE_TYPE
 struct op_info
 {
     OP_CODE op_code;
+    double (*calc_func)(double a, double b);
     const char* lisp_name;
     const char* tex_name;
     unsigned int num_of_args;
@@ -41,17 +47,17 @@ struct op_info
 
 static const op_info op_table[] =
 {
-    [OP_ADD] = {OP_ADD, "+",   "+",      2},
-    [OP_SUB] = {OP_SUB, "-",   "-",      2},
-    [OP_MUL] = {OP_MUL, "*",   "\\cdot", 2},
-    [OP_DIV] = {OP_DIV, "/",   "/",      2},
-    [OP_POW] = {OP_POW, "^",   "^",      2},
-    [OP_SIN] = {OP_SIN, "sin", "\\sin",  1},
-    [OP_COS] = {OP_COS, "cos", "\\cos",  1},
-    [OP_TAN] = {OP_TAN, "tg",  "\\tan",  1},
-    [OP_COT] = {OP_COT, "ctg", "\\cot",  1},
-    [OP_LN]  = {OP_LN,  "ln",  "\\ln",   1},
-    [OP_LOG] = {OP_LOG, "log", "\\log",  2}
+    [OP_ADD] = {OP_ADD, AddFunc, "+",   "+",      2},
+    [OP_SUB] = {OP_SUB, SubFunc, "-",   "-",      2},
+    [OP_MUL] = {OP_MUL, MulFunc, "*",   "\\cdot", 2},
+    [OP_DIV] = {OP_DIV, DivFunc, "/",   "/",      2},
+    [OP_POW] = {OP_POW, NULL,    "^",   "^",      2},
+    [OP_SIN] = {OP_SIN, NULL,    "sin", "\\sin",  1},
+    [OP_COS] = {OP_COS, NULL,    "cos", "\\cos",  1},
+    [OP_TAN] = {OP_TAN, NULL,    "tg",  "\\tan",  1},
+    [OP_COT] = {OP_COT, NULL,    "ctg", "\\cot",  1},
+    [OP_LN]  = {OP_LN,  NULL,    "ln",  "\\ln",   1},
+    [OP_LOG] = {OP_LOG, NULL,    "log", "\\log",  2}
 };
 static const size_t OP_TABLE_SIZE = sizeof(op_table) / sizeof(op_table[0]);
 
